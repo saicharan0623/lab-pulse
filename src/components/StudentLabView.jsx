@@ -39,18 +39,27 @@ const StudentLabView = ({ session, user, seatNumber, onSwitchSeat, onLeave }) =>
     
     // Signaling Listener
     const unsubSignals = subscribeToSignals(session.sessionId, user.sapId, async (signals) => {
+      const now = Date.now();
       for (const fromId in signals) {
         const signalGroup = signals[fromId];
         // Process signals from faculty
         for (const signalId in signalGroup) {
           const signal = signalGroup[signalId];
+          
+          // Ignore signals older than 10 seconds
+          if (now - signal.timestamp > 10000) continue;
+
           if (signal.type === 'view_request') {
             await handleViewRequest(fromId);
           } else if (pcRef.current) {
-            if (signal.type === 'answer') {
-              await pcRef.current.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-            } else if (signal.type === 'candidate') {
-              await pcRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            try {
+              if (signal.type === 'answer' && pcRef.current.signalingState === 'have-local-offer') {
+                await pcRef.current.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+              } else if (signal.type === 'candidate') {
+                await pcRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate));
+              }
+            } catch (err) {
+              console.error('Error processing signal:', err);
             }
           }
         }
