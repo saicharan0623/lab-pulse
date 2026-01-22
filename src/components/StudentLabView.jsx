@@ -117,7 +117,7 @@ const StudentLabView = ({ session, user, seatNumber, onSwitchSeat, onLeave }) =>
 
       {/* Upload Section */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div className="card-header">📤 Upload Assignment</div>
+        <div className="card-header">Upload Assignment</div>
         
         <div 
           className="file-upload"

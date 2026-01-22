@@ -20,11 +20,29 @@ const StartLabForm = ({ user, onBack, onSessionCreated }) => {
   const [availableSemesters, setAvailableSemesters] = useState([]);
   const [availableSubjects, setAvailableSubjects] = useState([]);
 
+  const [activeLabIds, setActiveLabIds] = useState([]);
+
   const labs = [
-    { id: 'lab123', name: 'Lab 1, 2, 3 (3rd Floor)' },
-    { id: 'lab456', name: 'Lab 4, 5, 6 (4th Floor)' },
+    { id: 'lab1', name: 'Lab 1 (3rd Floor)' },
+    { id: 'lab2', name: 'Lab 2 (3rd Floor)' },
+    { id: 'lab3', name: 'Lab 3 (3rd Floor)' },
+    { id: 'lab4', name: 'Lab 4 (4th Floor)' },
+    { id: 'lab5', name: 'Lab 5 (4th Floor)' },
+    { id: 'lab6', name: 'Lab 6 (4th Floor)' },
     { id: 'hpc', name: 'HPC Lab' }
   ];
+
+  React.useEffect(() => {
+    const fetchActiveSessions = async () => {
+      try {
+        const sessions = await getAllActiveSessions();
+        setActiveLabIds(sessions.map(s => s.labId));
+      } catch (err) {
+        console.error('Error fetching active sessions:', err);
+      }
+    };
+    fetchActiveSessions();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -89,7 +107,7 @@ const StartLabForm = ({ user, onBack, onSessionCreated }) => {
 
   return (
     <div className="card fade-in" style={{ width: '100%', maxWidth: '500px' }}>
-      <div className="card-header">🚀 Start New Lab Session</div>
+      <div className="card-header">Start New Lab Session</div>
       
       <form onSubmit={handleSubmit}>
         <div className="form-group">
@@ -102,9 +120,14 @@ const StartLabForm = ({ user, onBack, onSessionCreated }) => {
             required
           >
             <option value="">Choose a lab...</option>
-            {labs.map(lab => (
-              <option key={lab.id} value={lab.id}>{lab.name}</option>
-            ))}
+            {labs.map(lab => {
+              const isOccupied = activeLabIds.includes(lab.id);
+              return (
+                <option key={lab.id} value={lab.id} disabled={isOccupied}>
+                  {lab.name} {isOccupied ? '(Occupied)' : '(Available)'}
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -232,7 +255,7 @@ const StartLabForm = ({ user, onBack, onSessionCreated }) => {
             onClick={() => document.getElementById('refFile').click()}
           >
             {referenceFile ? (
-              <span>📄 {referenceFile.name}</span>
+              <span>{referenceFile.name}</span>
             ) : (
               <span style={{ color: 'var(--text-secondary)' }}>
                 Click to upload reference material
