@@ -10,6 +10,7 @@ const HomePage = ({ onLogin }) => {
     confirmPassword: '',
     name: '',
     year: '',
+    semester: '',
     course: '',
     division: '',
     rollNumber: ''
@@ -83,6 +84,7 @@ const HomePage = ({ onLogin }) => {
     // Validations
     if (!formData.name.trim()) { setError('Name is required'); setLoading(false); return; }
     if (!formData.year) { setError('Year is required'); setLoading(false); return; }
+    if (!formData.semester) { setError('Semester is required'); setLoading(false); return; }
     if (!formData.id || formData.id.length < 8) { setError('SAP ID must be at least 8 digits'); setLoading(false); return; }
     if (!formData.course) { setError('Course is required'); setLoading(false); return; }
     if (!formData.password || formData.password.length < 6) { setError('Password must be at least 6 characters'); setLoading(false); return; }
@@ -99,7 +101,8 @@ const HomePage = ({ onLogin }) => {
       const studentData = {
         sapId: formData.id,
         name: formData.name,
-        year: formData.year,
+        year: parseInt(formData.year),
+        semester: parseInt(formData.semester),
         course: formData.course,
         division: formData.division || null,
         rollNumber: formData.rollNumber || null,
@@ -301,6 +304,44 @@ const HomePage = ({ onLogin }) => {
                     <option value="CSDS">Computer Science & DS</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Semester</label>
+                <select 
+                  name="semester" 
+                  value={formData.semester} 
+                  onChange={handleChange} 
+                  className="form-select" 
+                  required
+                  disabled={!formData.year}
+                >
+                  <option value="">Select semester</option>
+                  {formData.year === '1' && (
+                    <>
+                      <option value="1">Semester 1</option>
+                      <option value="2">Semester 2</option>
+                    </>
+                  )}
+                  {formData.year === '2' && (
+                    <>
+                      <option value="3">Semester 3</option>
+                      <option value="4">Semester 4</option>
+                    </>
+                  )}
+                  {formData.year === '3' && (
+                    <>
+                      <option value="5">Semester 5</option>
+                      <option value="6">Semester 6</option>
+                    </>
+                  )}
+                  {formData.year === '4' && (
+                    <>
+                      <option value="7">Semester 7</option>
+                      <option value="8">Semester 8</option>
+                    </>
+                  )}
+                </select>
               </div>
 
               <div className="form-group">

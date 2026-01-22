@@ -26,7 +26,7 @@ const SeatNode = ({ id, status, onClick, isSelected }) => {
 };
 
 // Lab 4,5,6: 6 COLUMNS
-const Lab4567 = ({ seats = {}, onSeatClick, selectedSeat, sessionMode, selectionMode }) => {
+const Lab4567 = ({ seats = {}, onSeatClick, selectedSeat, sessionMode, selectionMode, labId }) => {
   // 6 columns, 8 seats each = 48 total
   const col1 = Array.from({ length: 8 }, (_, i) => i + 1);
   const col2 = Array.from({ length: 8 }, (_, i) => i + 9);
@@ -89,7 +89,9 @@ const Lab4567 = ({ seats = {}, onSeatClick, selectedSeat, sessionMode, selection
       </div>
       
       {/* Faculty Table */}
-      <div className="faculty-table">LAB 4, 5, 6</div>
+      <div className="faculty-table">
+        {labId?.startsWith('lab') ? `LAB ${labId.replace('lab', '')}` : (labId === 'lab456' ? 'LAB 4, 5, 6' : 'LAB 4, 5, 6')}
+      </div>
     </div>
   );
 };

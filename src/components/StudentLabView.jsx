@@ -1,5 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { subscribeToSession, addSubmission, deleteSubmission, uploadFile, switchSeat, subscribeToSeats } from '../firebase';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  subscribeToSession, 
+  addSubmission, 
+  deleteSubmission, 
+  uploadFile, 
+  switchSeat, 
+  subscribeToSeats,
+  sendSignal,
+  subscribeToSignals,
+  clearSignals,
+  updateSeatSharing 
+} from '../firebase';
 
 const StudentLabView = ({ session, user, seatNumber, onSwitchSeat, onLeave }) => {
   const [liveSession, setLiveSession] = useState(session);
@@ -8,11 +19,17 @@ const StudentLabView = ({ session, user, seatNumber, onSwitchSeat, onLeave }) =>
   const [error, setError] = useState('');
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [newSeat, setNewSeat] = useState(null);
+  
+  // WebRTC States
+  const [isSharing, setIsSharing] = useState(false);
+  const streamRef = useRef(null);
+  const pcRef = useRef(null);
 
   useEffect(() => {
     const unsubSession = subscribeToSession(session.sessionId, (data) => {
       if (data) setLiveSession(data);
       if (data?.status === 'ended') {
+        stopSharing();
         alert('Lab session has ended!');
         onLeave();
       }
@@ -20,11 +37,121 @@ const StudentLabView = ({ session, user, seatNumber, onSwitchSeat, onLeave }) =>
     
     const unsubSeats = subscribeToSeats(session.sessionId, setSeats);
     
+    // Signaling Listener
+    const unsubSignals = subscribeToSignals(session.sessionId, user.sapId, async (signals) => {
+      for (const fromId in signals) {
+        const signalGroup = signals[fromId];
+        // Process signals from faculty
+        for (const signalId in signalGroup) {
+          const signal = signalGroup[signalId];
+          if (signal.type === 'view_request') {
+            await handleViewRequest(fromId);
+          } else if (pcRef.current) {
+            if (signal.type === 'answer') {
+              await pcRef.current.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            } else if (signal.type === 'candidate') {
+              await pcRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            }
+          }
+        }
+      }
+      // After processing, clear signals for this user to avoid re-processing
+      if (Object.keys(signals).length > 0) {
+        clearSignals(session.sessionId, user.sapId);
+      }
+    });
+    
     return () => {
       unsubSession();
       unsubSeats();
+      unsubSignals();
+      stopSharing();
     };
   }, [session.sessionId]);
+
+  const stopSharing = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    setIsSharing(false);
+    updateSeatSharing(session.sessionId, seatNumber, false);
+  };
+
+  const handleToggleSharing = async () => {
+    if (isSharing) {
+      stopSharing();
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ 
+          video: { cursor: "always" },
+          audio: false 
+        });
+        
+        streamRef.current = stream;
+        setIsSharing(true);
+        updateSeatSharing(session.sessionId, seatNumber, true);
+        
+        // Listen for track ending (user clicks "Stop sharing" in browser UI)
+        stream.getVideoTracks()[0].onended = () => {
+          stopSharing();
+        };
+      } catch (err) {
+        setError('Screen share failed: ' + err.message);
+      }
+    }
+  };
+
+  const handleViewRequest = async (facultyId) => {
+    if (!streamRef.current) return;
+    
+    // Close existing connection if any
+    if (pcRef.current) {
+      pcRef.current.close();
+    }
+
+    // Create new PeerConnection for this faculty member
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    pcRef.current = pc;
+
+    // Add screen tracks
+    streamRef.current.getTracks().forEach(track => {
+      pc.addTrack(track, streamRef.current);
+    });
+
+    // Handle ICE candidates
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendSignal(session.sessionId, facultyId, user.sapId, {
+          type: 'candidate',
+          candidate: event.candidate.toJSON()
+        });
+      }
+    };
+
+    try {
+      // Create and send offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      
+      sendSignal(session.sessionId, facultyId, user.sapId, {
+        type: 'offer',
+        sdp: {
+          type: offer.type,
+          sdp: offer.sdp
+        }
+      });
+    } catch (err) {
+      console.error('Error creating WebRTC offer:', err);
+    }
+  };
 
   const mySeatData = seats[seatNumber] || {};
   const mySubmissions = mySeatData.submissions ? Object.entries(mySeatData.submissions) : [];
@@ -92,6 +219,13 @@ const StudentLabView = ({ session, user, seatNumber, onSwitchSeat, onLeave }) =>
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              className={`btn ${isSharing ? 'btn-primary' : 'btn-outline'}`}
+              onClick={handleToggleSharing}
+              style={{ background: isSharing ? 'var(--success)' : '' }}
+            >
+              {isSharing ? 'Stop Sharing' : 'Share Screen'}
+            </button>
             <button className="btn btn-outline" onClick={() => setShowSwitchModal(true)}>
               Switch PC
             </button>
@@ -102,7 +236,7 @@ const StudentLabView = ({ session, user, seatNumber, onSwitchSeat, onLeave }) =>
       {/* Reference File */}
       {liveSession.referenceFileUrl && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <div className="card-header">📄 Reference Material</div>
+          <div className="card-header">Reference Material</div>
           <a 
             href={liveSession.referenceFileUrl} 
             target="_blank" 
@@ -145,7 +279,7 @@ const StudentLabView = ({ session, user, seatNumber, onSwitchSeat, onLeave }) =>
 
       {/* Submissions List */}
       <div className="card">
-        <div className="card-header">📁 Your Submissions ({mySubmissions.length})</div>
+        <div className="card-header">Your Submissions ({mySubmissions.length})</div>
         
         {mySubmissions.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
@@ -166,7 +300,7 @@ const StudentLabView = ({ session, user, seatNumber, onSwitchSeat, onLeave }) =>
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: '500' }}>📄 {sub.fileName}</div>
+                  <div style={{ fontWeight: '500' }}>{sub.fileName}</div>
                   <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                     {new Date(sub.uploadedAt).toLocaleString()}
                   </div>

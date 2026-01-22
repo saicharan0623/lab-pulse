@@ -14,10 +14,49 @@ import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [view, setView] = useState('dashboard');
-  const [currentSession, setCurrentSession] = useState(null);
-  const [currentSeat, setCurrentSeat] = useState(null);
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('labpulse_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  const [view, setView] = useState(() => {
+    return localStorage.getItem('labpulse_view') || 'dashboard';
+  });
+  const [currentSession, setCurrentSession] = useState(() => {
+    const savedSession = localStorage.getItem('labpulse_session');
+    return savedSession ? JSON.parse(savedSession) : null;
+  });
+  const [currentSeat, setCurrentSeat] = useState(() => {
+    return localStorage.getItem('labpulse_seat') || null;
+  });
+
+  // Persist state changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('labpulse_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('labpulse_user');
+    }
+  }, [user]);
+
+  useEffect(() => {
+    localStorage.setItem('labpulse_view', view);
+  }, [view]);
+
+  useEffect(() => {
+    if (currentSession) {
+      localStorage.setItem('labpulse_session', JSON.stringify(currentSession));
+    } else {
+      localStorage.removeItem('labpulse_session');
+    }
+  }, [currentSession]);
+
+  useEffect(() => {
+    if (currentSeat) {
+      localStorage.setItem('labpulse_seat', currentSeat);
+    } else {
+      localStorage.removeItem('labpulse_seat');
+    }
+  }, [currentSeat]);
 
   // Initialize default faculty on first load
   useEffect(() => {
@@ -102,6 +141,7 @@ function App() {
             <ErrorBoundary>
               <LabSessionView 
                 session={currentSession}
+                user={user}
                 onBack={() => {
                   setView('dashboard');
                   setCurrentSession(null);

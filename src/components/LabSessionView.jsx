@@ -1,14 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { subscribeToSession } from '../firebase';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  subscribeToSession, 
+  sendSignal, 
+  subscribeToSignals, 
+  clearSignals 
+} from '../firebase';
 import Lab123 from './Lab123';
 import Lab4567 from './Lab4567';
 import HPC from './HPC';
 import EndLabForm from './EndLabForm';
 
-const LabSessionView = ({ session, onBack, onEndSession }) => {
+const LabSessionView = ({ session, onBack, onEndSession, user }) => {
   const [liveSession, setLiveSession] = useState(session);
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [showEndForm, setShowEndForm] = useState(false);
+  
+  // WebRTC States
+  const [remoteStream, setRemoteStream] = useState(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const pcRef = useRef(null);
+  const videoRef = useRef(null);
 
   // Safety check
   if (!session || !session.sessionId) {
@@ -27,8 +38,103 @@ const LabSessionView = ({ session, onBack, onEndSession }) => {
     const unsubscribe = subscribeToSession(session.sessionId, (data) => {
       if (data) setLiveSession(data);
     });
-    return () => unsubscribe();
+
+    // Signaling Listener
+    const unsubSignals = subscribeToSignals(session.sessionId, user.id, async (signals) => {
+      for (const fromId in signals) {
+        const signalGroup = signals[fromId];
+        for (const signalId in signalGroup) {
+          const signal = signalGroup[signalId];
+          if (pcRef.current) {
+            if (signal.type === 'offer') {
+              await handleOffer(fromId, signal.sdp);
+            } else if (signal.type === 'candidate') {
+              await pcRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            }
+          }
+        }
+      }
+      if (Object.keys(signals).length > 0) {
+        clearSignals(session.sessionId, user.id);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      unsubSignals();
+      closeConnection();
+    };
   }, [session.sessionId]);
+
+  useEffect(() => {
+    if (videoRef.current && remoteStream) {
+      videoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
+  const closeConnection = () => {
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    setRemoteStream(null);
+    setIsConnecting(false);
+  };
+
+  const handleViewScreen = async (studentId) => {
+    closeConnection();
+    setIsConnecting(true);
+
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    pcRef.current = pc;
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendSignal(session.sessionId, studentId, user.id, {
+          type: 'candidate',
+          candidate: event.candidate.toJSON()
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      setRemoteStream(event.streams[0]);
+      setIsConnecting(false);
+    };
+
+    // Request connection from student
+    sendSignal(session.sessionId, studentId, user.id, {
+      type: 'view_request'
+    });
+  };
+
+  const handleOffer = async (studentId, sdp) => {
+    if (!pcRef.current) return;
+    
+    try {
+      if (pcRef.current.signalingState !== 'stable') {
+        // If not stable, we might be in the middle of another negotiation
+        return;
+      }
+
+      await pcRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
+      const answer = await pcRef.current.createAnswer();
+      await pcRef.current.setLocalDescription(answer);
+
+      sendSignal(session.sessionId, studentId, user.id, {
+        type: 'answer',
+        sdp: {
+          type: answer.type,
+          sdp: answer.sdp
+        }
+      });
+    } catch (err) {
+      console.error('Error handling WebRTC offer:', err);
+    }
+  };
 
   const seats = liveSession.seats || {};
   
@@ -53,7 +159,8 @@ const LabSessionView = ({ session, onBack, onEndSession }) => {
     const props = {
       seats,
       onSeatClick: handleSeatClick,
-      sessionMode: true
+      sessionMode: true,
+      labId: liveSession.labId
     };
 
     if (!liveSession.labId) {
@@ -61,7 +168,13 @@ const LabSessionView = ({ session, onBack, onEndSession }) => {
     }
 
     switch (liveSession.labId) {
+      case 'lab1':
+      case 'lab2':
+      case 'lab3':
       case 'lab123': return <Lab123 {...props} />;
+      case 'lab4':
+      case 'lab5':
+      case 'lab6':
       case 'lab456': return <Lab4567 {...props} />;
       case 'hpc': return <HPC {...props} />;
       default: return <div>Unknown lab: {liveSession.labId}</div>;
@@ -176,6 +289,39 @@ const LabSessionView = ({ session, onBack, onEndSession }) => {
               {selectedSeat.status.toUpperCase()}
             </span>
           </p>
+          
+          <div style={{ marginTop: '1rem' }}>
+            {selectedSeat.isSharing ? (
+              <button 
+                className="btn btn-primary" 
+                style={{ width: '100%', background: 'var(--success)' }}
+                onClick={() => handleViewScreen(selectedSeat.studentId)}
+                disabled={isConnecting}
+              >
+                {isConnecting ? 'Connecting...' : 'View Live Screen'}
+              </button>
+            ) : (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
+                Student is not sharing screen
+              </p>
+            )}
+          </div>
+
+          {remoteStream && (
+            <div style={{ marginTop: '1rem', border: '2px solid var(--maroon)', borderRadius: '8px', overflow: 'hidden' }}>
+              <div style={{ background: 'var(--maroon)', color: 'white', padding: '0.25rem 0.5rem', fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
+                <span>LIVE SCREEN</span>
+                <span style={{ cursor: 'pointer' }} onClick={closeConnection}>CLOSE ×</span>
+              </div>
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                style={{ width: '100%', display: 'block' }} 
+              />
+            </div>
+          )}
+
           {selectedSeat.submissions && Object.keys(selectedSeat.submissions).length > 0 && (
             <div style={{ marginTop: '1rem' }}>
               <strong>Submissions:</strong>

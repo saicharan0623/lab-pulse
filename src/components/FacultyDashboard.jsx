@@ -49,21 +49,21 @@ const FacultyDashboard = ({ user, onStartLab, onPreviousLabs, onSemesterReport, 
           onClick={onStartLab}
           style={{ padding: '2rem', fontSize: '1.25rem' }}
         >
-          🚀 Start New Lab
+          Start New Lab
         </button>
         <button 
           className="btn btn-secondary" 
           onClick={onPreviousLabs}
           style={{ padding: '2rem', fontSize: '1.25rem' }}
         >
-          📋 Previous Labs
+          Previous Labs
         </button>
         <button 
           className="btn btn-secondary" 
           onClick={onSemesterReport}
           style={{ padding: '2rem', fontSize: '1.25rem' }}
         >
-          📊 Semester Report
+          Semester Report
         </button>
       </div>
 

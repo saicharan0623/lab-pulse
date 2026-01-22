@@ -1,18 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { updateStudent } from '../firebase';
-import { curriculum } from '../data/curriculum';
+import { curriculum, getSubjectsForYear } from '../data/curriculum';
 
 const StudentProfile = ({ user, onBack, onUpdate }) => {
   const [formData, setFormData] = useState({
     year: user.year || '',
-    division: user.division || ''
+    division: user.division || '',
+    semester: user.semester || ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [availableSemesters, setAvailableSemesters] = useState([]);
 
-  const canPromote = parseInt(user.year) < 4;
-  const nextYear = parseInt(user.year) + 1;
+  useEffect(() => {
+    if (formData.year) {
+      setAvailableSemesters(getSubjectsForYear(parseInt(formData.year)));
+    } else {
+      setAvailableSemesters([]);
+    }
+  }, [formData.year]);
+
+  const canPromote = parseInt(formData.year) < 4;
+  const nextYear = parseInt(formData.year) + 1;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -25,17 +35,19 @@ const StudentProfile = ({ user, onBack, onUpdate }) => {
     setSuccess('');
 
     try {
-      await updateStudent(user.sapId, {
+      const updateData = {
         year: parseInt(formData.year),
-        division: formData.division
-      });
+        division: formData.division,
+        semester: parseInt(formData.semester)
+      };
+
+      await updateStudent(user.sapId, updateData);
 
       setSuccess('Profile updated successfully!');
       setTimeout(() => {
         onUpdate({
           ...user,
-          year: parseInt(formData.year),
-          division: formData.division
+          ...updateData
         });
       }, 1500);
     } catch (err) {
@@ -117,6 +129,22 @@ const StudentProfile = ({ user, onBack, onUpdate }) => {
         </div>
 
         <div className="form-group">
+          <label className="form-label">Semester</label>
+          <select
+            name="semester"
+            value={formData.semester}
+            onChange={handleChange}
+            className="form-select"
+            disabled={loading || !formData.year}
+          >
+            <option value="">Select semester...</option>
+            {availableSemesters.map(s => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
           <label className="form-label">Division</label>
           <select
             name="division"
@@ -144,7 +172,7 @@ const StudentProfile = ({ user, onBack, onUpdate }) => {
           <button
             className="btn btn-primary"
             onClick={handleUpdate}
-            disabled={loading || !formData.year || !formData.division}
+            disabled={loading || !formData.year || !formData.division || !formData.semester}
             style={{ flex: 1 }}
           >
             {loading ? 'Updating...' : 'Save Changes'}

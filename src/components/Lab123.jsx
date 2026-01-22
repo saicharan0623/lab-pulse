@@ -26,7 +26,7 @@ const SeatNode = ({ id, status, onClick, isSelected }) => {
 };
 
 // Lab 1,2,3: Left | Middle opposite-facing | Right + Faculty Table
-const Lab123 = ({ seats = {}, onSeatClick, selectedSeat, sessionMode, selectionMode }) => {
+const Lab123 = ({ seats = {}, onSeatClick, selectedSeat, sessionMode, selectionMode, labId }) => {
   // Generate seat numbers
   const leftColumn = Array.from({ length: 8 }, (_, i) => i + 1);
   const middleLeft = Array.from({ length: 8 }, (_, i) => i + 9);
@@ -101,7 +101,9 @@ const Lab123 = ({ seats = {}, onSeatClick, selectedSeat, sessionMode, selectionM
       </div>
       
       {/* Faculty Table */}
-      <div className="faculty-table">LAB 1, 2, 3</div>
+      <div className="faculty-table">
+        {labId?.startsWith('lab') ? `LAB ${labId.replace('lab', '')}` : (labId === 'lab123' ? 'LAB 1, 2, 3' : 'LAB 1, 2, 3')}
+      </div>
     </div>
   );
 };

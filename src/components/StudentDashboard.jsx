@@ -12,11 +12,12 @@ const StudentDashboard = ({ user, onJoinSession, onEditProfile }) => {
   useEffect(() => {
     // Auto-filter sessions based on student's profile
     if (!loading) {
-      // Sessions filtered by student's year and division
+      // Sessions filtered by student's year, division and semester
       const filtered = filteredSessions.filter(session => {
         const yearMatch = session.year === parseInt(user.year);
         const divisionMatch = session.division === user.division;
-        return yearMatch && divisionMatch;
+        const semesterMatch = session.semester === parseInt(user.semester);
+        return yearMatch && divisionMatch && semesterMatch;
       });
       setFilteredSessions(filtered);
     }
@@ -25,11 +26,12 @@ const StudentDashboard = ({ user, onJoinSession, onEditProfile }) => {
   const loadSessions = async () => {
     try {
       const activeSessions = await getAllActiveSessions();
-      // Auto-filter by student's year and division
+      // Auto-filter by student's year, division and semester
       const filtered = activeSessions.filter(session => {
         const yearMatch = session.year === parseInt(user.year);
         const divisionMatch = session.division === user.division;
-        return yearMatch && divisionMatch;
+        const semesterMatch = session.semester === parseInt(user.semester);
+        return yearMatch && divisionMatch && semesterMatch;
       });
       setFilteredSessions(filtered);
     } catch (err) {
@@ -45,7 +47,7 @@ const StudentDashboard = ({ user, onJoinSession, onEditProfile }) => {
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0 }}>Welcome, {user.name}</h2>
             <p style={{ color: 'var(--text-secondary)', margin: '0.5rem 0 0' }}>
-              SAP ID: {user.sapId} • {user.course} • Year {user.year} • Division {user.division}
+              SAP ID: {user.sapId} • {user.course} • Year {user.year} • Sem {user.semester} • Div {user.division}
             </p>
           </div>
           <button 
@@ -87,7 +89,11 @@ const StudentDashboard = ({ user, onJoinSession, onEditProfile }) => {
                   marginBottom: '0.5rem'
                 }}>
                   <span>{session.subject}</span>
-                  <span>{session.labId === 'lab123' ? 'Lab 1,2,3' : session.labId === 'lab456' ? 'Lab 4,5,6' : 'HPC Lab'}</span>
+                  <span>
+                    {session.labId.startsWith('lab') 
+                      ? `Lab ${session.labId.replace('lab', '')}` 
+                      : session.labId === 'hpc' ? 'HPC Lab' : session.labId}
+                  </span>
                 </div>
                 <div style={{ marginTop: '0.75rem' }}>
                   <button className="btn btn-primary" style={{ width: '100%' }}>

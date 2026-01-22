@@ -49,11 +49,18 @@ const SeatSelection = ({ session, user, onSeatSelected, onBack }) => {
       seats,
       onSeatClick: handleSeatClick,
       selectedSeat,
-      selectionMode: true
+      selectionMode: true,
+      labId: session.labId
     };
 
     switch (session.labId) {
+      case 'lab1':
+      case 'lab2':
+      case 'lab3':
       case 'lab123': return <Lab123 {...props} />;
+      case 'lab4':
+      case 'lab5':
+      case 'lab6':
       case 'lab456': return <Lab4567 {...props} />;
       case 'hpc': return <HPC {...props} />;
       default: return <div>Unknown lab</div>;

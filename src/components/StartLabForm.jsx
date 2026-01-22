@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { createSession, uploadFile } from '../firebase';
+import { createSession, uploadFile, getAllActiveSessions } from '../firebase';
 import { curriculum, getSubjectsForYear, getSubjectsForSemester } from '../data/curriculum';
 
 const StartLabForm = ({ user, onBack, onSessionCreated }) => {

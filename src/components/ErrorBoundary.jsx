@@ -18,7 +18,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="card fade-in" style={{ width: '100%', maxWidth: '600px' }}>
-          <h2 style={{ color: 'var(--error)', marginTop: 0 }}>⚠️ Something went wrong</h2>
+          <h2 style={{ color: 'var(--error)', marginTop: 0 }}>Something went wrong</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
             {this.state.error?.message || 'An unexpected error occurred'}
           </p>
@@ -33,7 +33,7 @@ class ErrorBoundary extends React.Component {
             onClick={() => window.location.reload()}
             style={{ width: '100%' }}
           >
-            🔄 Reload Page
+            Reload Page
           </button>
         </div>
       );

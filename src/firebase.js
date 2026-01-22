@@ -194,6 +194,36 @@ export const subscribeToSeats = (sessionId, callback) => {
     });
 };
 
+// ==================== WEBRTC SIGNALING ====================
+
+export const sendSignal = async (sessionId, toId, fromId, signal) => {
+    const signalRef = push(ref(db, `sessions/${sessionId}/signals/${toId}/${fromId}`));
+    await set(signalRef, {
+        ...signal,
+        timestamp: Date.now()
+    });
+};
+
+export const subscribeToSignals = (sessionId, toId, callback) => {
+    return onValue(ref(db, `sessions/${sessionId}/signals/${toId}`), (snapshot) => {
+        if (snapshot.exists()) {
+            callback(snapshot.val());
+        } else {
+            callback({});
+        }
+    });
+};
+
+export const clearSignals = async (sessionId, toId) => {
+    await remove(ref(db, `sessions/${sessionId}/signals/${toId}`));
+};
+
+export const updateSeatSharing = async (sessionId, seatNumber, isSharing) => {
+    await update(ref(db, `sessions/${sessionId}/seats/${seatNumber}`), {
+        isSharing
+    });
+};
+
 // ==================== STATS FUNCTIONS ====================
 
 export const getFacultyStats = async (facultyId) => {
